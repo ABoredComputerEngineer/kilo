@@ -1,0 +1,8 @@
+*
+!*.*
+.vscode/
+*test*
+*gdb*
+*error*
+*.swp*
+*trash*
