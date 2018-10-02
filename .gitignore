@@ -3,6 +3,6 @@
 .vscode/
 *test*
 *gdb*
-*error*
+error.txt
 *.swp*
 *trash*
