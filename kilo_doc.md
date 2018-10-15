@@ -56,3 +56,14 @@ VMIN sets the min. amount of bytes that need to be present at the i/p before the
 VTIME sets the timeout duration for i/p. The values are given in tenth of a second. 
 
 
+
+##List of important escape sequences
+
+Esc : \x1b or ^[ or \E
+Up Arrow: \x1b[A i.e, ^[[A
+Page Up: \x1b[5~ i.e, ^[[5
+Page Down: \x1b[6~ i.e, ^[[6
+Home : <Esc>[1~ or <Esc>[7~ or <Esc>[H or <Esc>OH 
+End: <Esc>[4~ or <Esc>[8~ or <Esc>[F or <Esc>OF 
+Delete : <Esc>[3~
+Insert : <Esc>[2~

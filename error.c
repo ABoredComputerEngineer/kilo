@@ -1,6 +1,7 @@
 #include <gnu/libc-version.h>
 #include "error.h"
-
+extern void disable_raw_mode(void);
+#define exit(x) ( disable_raw_mode(), exit(x) )
 static void terminate(bool useExit2){
      char *s;
      s = getenv("EF_DUMPCORE");
@@ -95,4 +96,4 @@ void cmdLineError(const char *fmt, ... ){
      va_end(args);
      fflush(stderr);
 }
-
+#undef exit
