@@ -1,27 +1,31 @@
-#pragma once
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <stddef.h>
-#include <stdarg.h>
-typedef struct strHdr {
-     size_t cap; // The total number of bytes the current buffer can hold ( not inc. size of struct )
-     size_t len; // The length of the string in the buffer
-     char str[0];
-} strHdr;
-#define MAX(x,y) ( ( ( x ) > ( y ) ) ? ( x ) : ( y ) )
-enum { MIN_SIZE = 256 };
-#define str_hdr(x) ( (strHdr *)( (char *)x  - offsetof( strHdr , str ) ) )
-#define str_len(x) ( ( x )?( str_hdr(x)->len ):0 ) // the string length i.e. w/o NULL character
-#define str_size(x)  ( ( x )?( str_hdr(x)->len + 1 )*sizeof(*x): 0 ) // the string size i.e w/ NULL character
-#define str_cap(x) ( ( x )?str_hdr(x)->cap:0 )
-#define str_free(x) ( free( str_hdr(x) ), x = NULL )
-#define str_init(x) ( x = _init_string( x ) )
-#define str_append(x,y) ( x = _string_append(x,y) )
-#define str_print(x,y,...) ( x = _string_print(x, y, __VA_ARGS__ ) )
-#define str_app_print(x, y , ... ) ( x = _string_app_print( x, y , __VA_ARGS__ ) )
+#include <kilo_string.h>
+
+static void *xmalloc( size_t size ){
+     void *x = malloc(size);
+     if ( !x ){
+//          errExit("Unable to allocate memory!\n");
+          perror("Unable to allocate Memory for Strings! ");
+     }
+     assert( x != NULL );
+     return x;
+}
+
+static void *xcalloc(size_t num, size_t size){
+     void *x = calloc( num, size );
+     if ( !x ){
+          perror("Unable to allocate Memory for Strings! ");
+     } 
+     return x;
+}
+
+static void *xrealloc( void *buff,size_t size ){
+     void *new = realloc( buff,size );
+     if ( !new ){
+          perror("Unable to allocate Memory for Strings! ");
+     }
+     assert( new != NULL );
+     return new;
+}
 char* _init_string( char *str ){
      if ( str != NULL ){
           fprintf(stderr,"Not a null string pointer!\n");
