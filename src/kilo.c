@@ -8,6 +8,11 @@
 #include <key_def.h>
 #include <kilo_string.h>
 #include <error.h>
+
+#define TEST 1
+
+FILE *log_file;
+#define LOG_ERROR( ... )  fprintf( log_file,__VA_ARGS__ ) 
 size_t position = 0;
 enum { BUFF_LEN = 256 };
 
@@ -40,11 +45,16 @@ void *xrealloc( void *buff,size_t size ){
      return new;
 }
 
+/*
+ * =========================================
+ * | TERMINAL SETTINGS |
+ * =========================================
+ */
 typedef struct term_info {
      struct {
           int row;
           int col;
-     } WindowSize;
+     } ws;
      struct {
           int row;
           int col;
@@ -60,14 +70,18 @@ void disable_raw_mode(void){
 
 void enable_raw_mode(void){
      struct termios raw = active_term.terminal;
-     raw.c_lflag &= ~(ECHO); // Disable the ECHO bit, preventig display of input
+     //raw.c_lflag &= ~(ECHO); // Disable the ECHO bit, preventig display of input
      raw.c_iflag &= ~(IXON | ICRNL | INPCK | IGNBRK | ISTRIP);
      raw.c_lflag &= ~(ICANON | ISIG| IEXTEN);
+#if  TEST
+     raw.c_lflag |= (ECHO); // Enable the ECHO bit, for testing purposes 
+     raw.c_lflag |= ISIG; // this is set only for testing puposes
+#endif
      raw.c_oflag &= ~(OPOST);
      raw.c_cflag |= CS8;
      raw.c_lflag |=  IEXTEN;
-     raw.c_cc[VMIN] = 0;
-     raw.c_cc[VTIME] = 1;
+     raw.c_cc[VMIN] = 1;
+     raw.c_cc[VTIME] = 0;
      tcsetattr(STDIN_FILENO,TCSAFLUSH,&raw);
      atexit(disable_raw_mode);
 }
@@ -110,6 +124,8 @@ int get_cursor_pos( int *row, int *col ){
      return 1;
 }
 
+// ===============================================================================
+
 
 void kilo_exit(void){
      disable_raw_mode();
@@ -146,60 +162,72 @@ void move_cursor(int c){
                break;
      }
 }
+
+#define CASE1( X , Y ) \
+     case X :\
+          LOG_ERROR("Key Entered :" #Y "\n" );\
+          return Y;
+
+
 char get_key_press(void){
      int key = 0;
      char c;
-     while ( ( key = read(STDIN_FILENO,&c,1) ) != 1 );
-     if ( c == '\x1b' ){
-          char seq[3];
+     while ( ( key = read(STDIN_FILENO,&c,1) ) != 1 ); // loop until a key is pressed
+     if ( c == '\x1b' ){ // if the key is an escape sequence which is the string "^["
+          char seq[5];
           if ( read(STDIN_FILENO,&seq[0],1) != 1 )
                return c;
-          if ( read(STDIN_FILENO,&seq[1],1) != 1 )
-               return c;
-          if ( seq[0] == '[' ){
+          if ( seq[0] == '[' ){ // the input escape sequence is ^[ [
+               if ( read(STDIN_FILENO,&seq[1],1) != 1 ) return c;
                switch ( seq[1] ){
-                    case 'A':
-                         return ARROW_UP;
-                         break;
-                    case 'B':
-                         return ARROW_DOWN;
-                         break;
-                    case 'C':
-                         return ARROW_RIGHT;
-                         break;
-                    case '3':
-                    case '2':
-                         if ( read(STDIN_FILENO,&seq[2],1) != 1 ){
+                    CASE1('A',ARROW_UP)
+                    CASE1('B',ARROW_DOWN)
+                    CASE1('C',ARROW_RIGHT)
+                    CASE1('D',ARROW_LEFT)
+                    CASE1('H',HOME)
+                    CASE1('F',END)
+                    case '1': case '2': case '3': case '4': case '5': case  '6': case '7': case '8': case '9':{
+                         int d;
+                         if ( ( d = read( STDIN_FILENO, &seq[2],2) ) < 1 ){ // Try to read at least one character
                               return c;
                          }
-                         if ( seq[2] == '~' ){
-                              return DELETE;
+                         if ( d == 1 ){
+                              assert( seq[2] == '~' );
+                              LOG_ERROR( "Sequence entered: <Esc>%c%c%c\t",seq[0],seq[1],seq[2] ); 
+                              switch ( seq[1] ){
+                                   CASE1( '1', HOME )
+                                   CASE1( '2', INSERT)
+                                   CASE1( '3', DELETE )
+                                   CASE1( '4', END )
+                                   CASE1( '5', PAGE_UP )
+                                   CASE1( '6', PAGE_DOWN )
+                                   CASE1( '7', HOME )
+                                   CASE1( '8', END )
+                                   default:
+                                        LOG_ERROR( "At Line: %d, Invalid sequence entered: \n",__LINE__);
+                                        return HOME;
+                                        break;
+                              }
+                         } else if ( d == 2 ){
+                              assert( seq[3] == '~' );
+                              int key = ( seq[1] & 0xf ) * 10  + ( seq[2] & 0xf );  // convert "ab" ( string ) to ab ( number )
+                              LOG_ERROR( "Sequence entered: <Esc>%c%c%c%c\t",seq[0],seq[1],seq[2],seq[3] ); 
+//                              LOG_ERROR( "Value of d : %d, key : %d \n", d, key );
+                              switch ( key ){
+                                   CASE1( 15, F5 )
+                                   CASE1( 17, F6 )
+                                   CASE1( 18, F7 )
+                                   CASE1( 20, F9 )
+                                   CASE1( 21, F10 )
+                                   CASE1( 24, F12 )
+                                   default:
+                                        LOG_ERROR( "At Line: %d, Invalid sequence entered:\n",__LINE__);
+                                        LOG_ERROR( "Value of d : %d, key : %d \n", d, key );
+                                        return HOME;
+                                        break;
+                              }
                          }
-                         break;
-                    case 'D':
-                         return ARROW_LEFT;
-                         break;
-                    case '5':
-                         return PAGE_UP;
-                         break;
-                    case '6':
-                         return PAGE_DOWN;
-                         break;
-                    case '1' : case '7' : case '4' : case '8': {
-                         if ( read(STDIN_FILENO,&seq[2], 1 ) != 1 ){
-                              return c;
-                         }
-                         if (  seq[2] == '~' ){
-                              return ( seq[1] == '1' || seq[1] == '7' )?HOME:END;
-                         }
-                         break;
                     }
-                    case 'H':
-                         return HOME;
-                         break;
-                    case 'F':
-                         return END;
-                         break;
                     case 'O':
                          if ( read(STDIN_FILENO,&seq[2],1) != 1 ){
                               return c;
@@ -233,6 +261,7 @@ void process_key(void){
                break;
           case HOME:
                active_term.pos.col = 2;
+               active_term.pos.row = 1;
                break;
           case END:
                active_term.pos.col = active_term.ws.col;
@@ -262,17 +291,30 @@ void print_tidles(char *new){
      str_append(new,buff);
      str_append(new,"~");
 }
+
+#define CLEAR_LINE "\x1b[2K"
+#define CLEAR_SCREEN "\x1b[J"
+#define CURSOR_HOME "\x1b[H"
+#define SET_CURSOR(x,y) "\x1b[" #x ";" #y "H" // sets cursor from top left
+
+#define SET_CURSOR_FORMAT_STR "\x1b[%d;%dH" // sets cursor from top left
+
+#define CURSOR_STR_LEN(d) ( 4 + ( d ) ) // arguments to CURSOR_STR_LEN is total number of digits in the x and y position combined
+
+
 void refresh_screen(void){
      char *s1 = NULL;
      str_init(s1);
-     str_append(s1,"\x1b[2K""\x1b[H");
+//     str_append(s1,"\x1b[2K""\x1b[H");     
+     str_append( s1, CLEAR_LINE CURSOR_HOME ); // clear the line and set cursor to home position
      print_tidles(s1);
-     str_app_print( s1, "\x1b[%d;%dH",active_term.pos.row, active_term.pos.col ); 
+     str_app_print( s1,SET_CURSOR_FORMAT_STR ,active_term.pos.row, active_term.pos.col );  // arguments are row followed by columns
      if ( write(STDOUT_FILENO,s1,str_len(s1)) == -1 ){
           errExit("Error writing to stdout!\n");
      }
      str_free(s1);
 }
+
 void center_print(const char *message, int width, int row){
      while ( isspace(*message) ){
           message++;
@@ -308,34 +350,42 @@ void center_print(const char *message, int width, int row){
 }
 void print_welcome(void){
      center_print("Welcome to this useless shit! Press any key to continue...",20, active_term.ws.row/2 - 2);
-     write(STDOUT_FILENO,"\x1b[H",3);
+     write( STDOUT_FILENO,SET_CURSOR(1,2), CURSOR_STR_LEN(2) );      
+     write(STDOUT_FILENO,"\x1b[1;2H",6);
 }
 
 
 
 int main(int argc, char *argv[]){
+     log_file = fopen( "test/log.txt", "w" );
      if ( tcgetattr(STDIN_FILENO,&active_term.terminal) == - 1 ){
           errExit("Unable to detect terminal for the stream!\n"); 
      }
      enable_raw_mode();
-     //int count = 0;
      get_terminal_size();
+     write( STDIN_FILENO, "\x1b[2J",4 ); // clear the screen
      refresh_screen();
      print_welcome();
      char tmp;
-     while ( read(STDIN_FILENO,&tmp,1) != 1 ); 
-     write(STDIN_FILENO,"\x1b[2J\x1b[1;2H",4+6);
+     while ( read(STDIN_FILENO,&tmp,1) != 1 );  // Until the user presses a key keep displaying welcome message
+     write(STDIN_FILENO, CLEAR_SCREEN SET_CURSOR(1,2) , 4 + 6 ); // ( 4 + 6 ) is the length of the string to be written
+     write(STDIN_FILENO,"\x1b[2J\x1b[1;2H",4+6); // clear the screen and put cursor at home position
      if ( get_cursor_pos( &active_term.pos.row, &active_term.pos.col ) == -1 ){
           errExit( " Error getting cursor position!\n" );
      }
+     char str[256] = {};
+     (void)str;
      while ( 1 ){
+#if 0
          refresh_screen();
-//         printf("%d",count);
-//         fflush(stdout);
-//         count++;
-      
+         read( STDIN_FILENO, str, 256 );
+         printf("%d",str[0]);
+         fflush(stdout);
+#else
+         refresh_screen();
          process_key();
-    }
-
+#endif
+     }
+     fclose( log_file );
      return 0;
 }

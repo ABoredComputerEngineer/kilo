@@ -1,5 +1,6 @@
 #include <kilo_string.h>
 
+#if 0
 static void *xmalloc( size_t size ){
      void *x = malloc(size);
      if ( !x ){
@@ -9,6 +10,7 @@ static void *xmalloc( size_t size ){
      assert( x != NULL );
      return x;
 }
+#endif
 
 static void *xcalloc(size_t num, size_t size){
      void *x = calloc( num, size );

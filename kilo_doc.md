@@ -60,10 +60,22 @@ VTIME sets the timeout duration for i/p. The values are given in tenth of a seco
 ##List of important escape sequences
 
 Esc : \x1b or ^[ or \E
-Up Arrow: \x1b[A i.e, ^[[A
-Page Up: \x1b[5~ i.e, ^[[5
-Page Down: \x1b[6~ i.e, ^[[6
+Up Arrow: <Esc>[A
+Down Arrow: <Esc>[B
+Right Arrow: <Esc>[C
+Left Arrow: <Esc>[D
+Page Up: <Esc>[5
+Page Down: <Esc>[6
 Home : <Esc>[1~ or <Esc>[7~ or <Esc>[H or <Esc>OH 
 End: <Esc>[4~ or <Esc>[8~ or <Esc>[F or <Esc>OF 
 Delete : <Esc>[3~
 Insert : <Esc>[2~
+F2  : <Esc>OQ
+F3  : <Esc>OR
+F4  : <Esc>OS
+F5  : <Esc>[15~
+F6  : <Esc>[17~
+F7  : <Esc>[18~
+F9  : <Esc>[20~
+F10 : <Esc>[21~
+F12 : <Esc>[24~
