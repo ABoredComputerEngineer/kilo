@@ -11,14 +11,46 @@
 
 #define TEST 1
 
+enum { 
+     MAIN_BUFF_LEN= 5*1024*1024, // 5 MB for the main buffer
+     DEFAULT_LEN = 256, 
+     MAX_LINES = 256,
+     BUFF_COLUMNS = 256,
+};
 FILE *log_file;
+typedef struct StoreBuffer{
+     char*  buff;
+     size_t current_pos; // where the cursor currently is 
+     size_t len; // the length of the string in buff 
+     size_t line_len[MAX_LINES]; // line_len[ LINE_NUMBER ] gives the lenght of the string in the line LINE_NUMBER
+} StoreBuffer;
 #define LOG_ERROR( ... )  fprintf( log_file,__VA_ARGS__ ) 
-size_t position = 0;
-enum { BUFF_LEN = 256 };
+
+StoreBuffer main_buffer;
+
+
+/*
+typedef struct term_info {
+     struct {
+          int row;
+          int col;
+     } ws;
+     struct {
+          int row;
+          int col;
+     } pos;
+     struct termios terminal;
+} term_info;
+*/
+
+// 2d access via 1d array
+// array[ n * x + y ], n is no of columns
+// the -1 exists as the left most as tiddles
+#define POS( X, Y ) ( main_buffer.buff[ ( BUFF_COLUMNS )*(X) + ( Y ) ] ) 
+
+
 
 struct termios terminal_state;
-
-
 void *xmalloc( size_t size ){
      void *x = malloc(size);
      if ( !x ){
@@ -45,6 +77,16 @@ void *xrealloc( void *buff,size_t size ){
      return new;
 }
 
+void xfree( void **buff ){
+     assert( buff );
+     if ( *buff == NULL ){
+          LOG_ERROR( "\nFATAL: Trying to free from a null pointer!\n" );
+          return;
+     }
+     free( *buff );
+     *buff = NULL;
+}
+
 /*
  * =========================================
  * | TERMINAL SETTINGS |
@@ -59,6 +101,7 @@ typedef struct term_info {
           int row;
           int col;
      } pos;
+     int left_padding;
      struct termios terminal;
 } term_info;
 
@@ -132,6 +175,8 @@ void kilo_exit(void){
      write(STDOUT_FILENO,"\x1b[2J",4);
      write(STDOUT_FILENO,"\x1b[H",3);
 //     write(STDOUT_FILENO,"\x1b[?47l",6);
+     fclose( log_file );
+     xfree( (void **)&( main_buffer.buff ) );
      exit(EXIT_SUCCESS);
 }
 
@@ -151,7 +196,7 @@ void move_cursor(int c){
                }
                break;
           case ARROW_LEFT:
-               if ( active_term.pos.col - 1 >= 2 ){
+               if ( active_term.pos.col - 1 >= active_term.left_padding + 1 ){
                     active_term.pos.col--;
                }
                break;
@@ -243,6 +288,22 @@ char get_key_press(void){
      return c;
 }
 
+/*
+typedef struct StoreBuffer{
+     char*  buff;
+     size_t current_pos; // where the cursor currently is 
+     size_t len; // the length of the string in buff 
+} StoreBuffer;
+*/
+
+void buff_write( char c ){
+     assert( active_term.pos.row >= 1 );
+     assert( active_term.pos.col >= active_term.left_padding - 1 );
+     POS( active_term.pos.row - 1 , active_term.pos.col - active_term.left_padding - 1 ) = c;
+     LOG_ERROR("Writing \'%c\' to position ( %d, %d ).\n",c,active_term.pos.row - 1, active_term.pos.col -active_term.left_padding - 1 );
+     main_buffer.line_len[ active_term.pos.row ]++;
+}
+
 void process_key(void){
      char c = get_key_press();
      switch ( c ){
@@ -251,7 +312,7 @@ void process_key(void){
                break;
           case CTRL_KEY('m'):
                active_term.pos.row++;
-               active_term.pos.col = 2;
+               active_term.pos.col = active_term.left_padding + 1;
                break;
           case ARROW_LEFT:
           case ARROW_DOWN:
@@ -274,6 +335,7 @@ void process_key(void){
                active_term.pos.row = active_term.ws.row;
                break;
           default:{
+               buff_write( c );
                move_cursor(ARROW_RIGHT);
                break;
           }
@@ -283,11 +345,24 @@ void process_key(void){
 /** output **/
 
 void print_tidles(char *new){
-     char buff[BUFF_LEN] = "";
+     char buff[DEFAULT_LEN] = "";
 
+#if 0
      for ( size_t i = 0; i < active_term.ws.row - 1; i++ ){
           sprintf(buff,"%s~\r\n",buff);
      }
+#else 
+     char *s = buff;
+     for ( int row = 0;\
+               ( row < active_term.ws.row - 1 ) && ( s < buff+DEFAULT_LEN );\
+               row++ ){
+          for ( int j = 0; j < active_term.left_padding; j++ ){
+               *s++ = '~';
+          }
+          *s++ = '\r';
+          *s++ = '\n';
+     }
+#endif
      str_append(new,buff);
      str_append(new,"~");
 }
@@ -302,12 +377,18 @@ void print_tidles(char *new){
 #define CURSOR_STR_LEN(d) ( 4 + ( d ) ) // arguments to CURSOR_STR_LEN is total number of digits in the x and y position combined
 
 
+#define BUFF_LINE( X ) ( &main_buffer.buff[ BUFF_COLUMNS * (X -1) ] ) 
+
 void refresh_screen(void){
      char *s1 = NULL;
      str_init(s1);
 //     str_append(s1,"\x1b[2K""\x1b[H");     
      str_append( s1, CLEAR_LINE CURSOR_HOME ); // clear the line and set cursor to home position
      print_tidles(s1);
+     str_app_print( s1,SET_CURSOR_FORMAT_STR ,active_term.pos.row, active_term.left_padding + 1 );  // set cursor to the begining of current row
+     LOG_ERROR("Length of Line #%d : %zu\n", active_term.pos.row, main_buffer.line_len[ active_term.pos.row ]  );
+     LOG_ERROR("String printed: %s\n",BUFF_LINE(active_term.pos.row) );
+     strn_app_print( s1, main_buffer.line_len[ active_term.pos.row ] ,"%s",BUFF_LINE(active_term.pos.row)  );
      str_app_print( s1,SET_CURSOR_FORMAT_STR ,active_term.pos.row, active_term.pos.col );  // arguments are row followed by columns
      if ( write(STDOUT_FILENO,s1,str_len(s1)) == -1 ){
           errExit("Error writing to stdout!\n");
@@ -339,9 +420,9 @@ void center_print(const char *message, int width, int row){
                mlen = ( mlen == 0 )?width:mlen;
                assert( mlen>= 0 );
           }
-          char buff[BUFF_LEN];
+          char buff[DEFAULT_LEN];
           int lpad = (active_term.ws.col - mlen)/2 ; 
-          int x = snprintf(buff,BUFF_LEN,"\x1b[%d;%dH",row,lpad);
+          int x = snprintf(buff,DEFAULT_LEN,"\x1b[%d;%dH",row,lpad);
           write(STDOUT_FILENO,buff,x);
           printf("%.*s",(int)mlen,message);
           fflush(stdout);
@@ -357,7 +438,16 @@ void print_welcome(void){
 
 
 int main(int argc, char *argv[]){
+     str_test();
+     active_term.left_padding = 2;
+     active_term.pos.row = 1;
+     active_term.pos.col = 1;
      log_file = fopen( "test/log.txt", "w" );
+
+     main_buffer.buff = xmalloc( MAIN_BUFF_LEN + 1 );
+     main_buffer.current_pos = 0;
+     main_buffer.len = 0;
+
      if ( tcgetattr(STDIN_FILENO,&active_term.terminal) == - 1 ){
           errExit("Unable to detect terminal for the stream!\n"); 
      }
@@ -366,10 +456,11 @@ int main(int argc, char *argv[]){
      write( STDIN_FILENO, "\x1b[2J",4 ); // clear the screen
      refresh_screen();
      print_welcome();
+     write( STDIN_FILENO,"\x1b[1;3H",6 );
      char tmp;
      while ( read(STDIN_FILENO,&tmp,1) != 1 );  // Until the user presses a key keep displaying welcome message
-     write(STDIN_FILENO, CLEAR_SCREEN SET_CURSOR(1,2) , 4 + 6 ); // ( 4 + 6 ) is the length of the string to be written
-     write(STDIN_FILENO,"\x1b[2J\x1b[1;2H",4+6); // clear the screen and put cursor at home position
+//     write(STDIN_FILENO, CLEAR_SCREEN SET_CURSOR(1,3) , 4 + 6 ); // ( 4 + 6 ) is the length of the string to be written
+     write(STDIN_FILENO,"\x1b[2J\x1b[1;3H",4+6); // clear the screen and put cursor at home position
      if ( get_cursor_pos( &active_term.pos.row, &active_term.pos.col ) == -1 ){
           errExit( " Error getting cursor position!\n" );
      }
@@ -386,6 +477,6 @@ int main(int argc, char *argv[]){
          process_key();
 #endif
      }
-     fclose( log_file );
      return 0;
 }
+

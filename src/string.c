@@ -104,6 +104,23 @@ char *_string_app_print( char *x , const char *fmt ,... ){
      str_hdr(x)->len += len;
      return x;
 }
+char *_stringn_app_print( char *x , size_t n ,  const char *fmt ,... ){
+     va_list args;
+     va_start(args,fmt);
+     size_t size = str_size(x);
+     size_t cap = str_cap(x);
+     size_t len = vsnprintf( x + size - 1, ( n + 1 < cap - size )?( n + 1 ):(cap-size) , fmt, args );
+     va_start(args,fmt);
+     if ( ( len + 1 )*sizeof(char) > cap - size  ){
+          x = string_grow( str_hdr(x), cap + size + len );
+          cap = str_cap(x);
+          len = vsnprintf( x + size - 1, ( ( n + 1 ) < cap - size )?( n + 1 ):(cap-size), fmt, args );
+          assert( len <= cap - size );
+     }
+     va_end(args);
+     str_hdr(x)->len += len;
+     return x;
+}
 
 void str_test(void){
      char *s1 = NULL;  
@@ -111,6 +128,10 @@ void str_test(void){
      str_append(s1,"fuck");
      str_app_print( s1, "%s%d\n", "this",32 );
      str_print( s1, "%s\n","Working!");
+     char *s2 = NULL;
+     str_init( s2 );
+     strn_app_print( s2, 3, "%s","aaaa" );
+     assert( strcmp( s2, "aaa" ) == 0 );
      //str_append(s1," this shit\n");
      //for ( int i = 0; i < 32; i++ ){
      //     str_append(s1,"!");
@@ -118,8 +139,9 @@ void str_test(void){
      //str_append(s1,"\n");
      //printf("%s",s1);
 //     str_print(s1,"%s\n","fuck");
-     printf("%s",s1); 
+//     printf("%s",s1); 
      str_free(s1);
+     str_free(s2);
 }
 
 

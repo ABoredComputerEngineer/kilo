@@ -88,6 +88,8 @@ tags
 # Persistent undo
 [._]*.un~
 
+# GDB
+.gdb_history
 
 # Specific stuff
 *test*
