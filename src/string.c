@@ -120,21 +120,48 @@ char *_string_app_print( char *x , const char *fmt ,... ){
      str_hdr(x)->len += len;
      return x;
 }
+#if 0
+// function deprecated until furthuer notice
 char *_stringn_app_print( char *x , size_t n ,  const char *fmt ,... ){
      va_list args;
      va_start(args,fmt);
      size_t size = str_size(x);
      size_t cap = str_cap(x);
-     size_t len = vsnprintf( x + size - 1, ( n + 1 < cap - size )?( n + 1 ):(cap-size) , fmt, args );
+     size_t len = vsnprintf( x + size - 1, ( n < cap - size )?( n ):(cap-size) , fmt, args );
      va_start(args,fmt);
      if ( ( len + 1 )*sizeof(char) > cap - size  ){
           x = string_grow( str_hdr(x), cap + size + len );
           cap = str_cap(x);
-          len = vsnprintf( x + size - 1, ( ( n + 1 ) < cap - size )?( n + 1 ):(cap-size), fmt, args );
+          len = vsnprintf( x + size - 1, ( ( n ) < cap - size )?( n ):(cap-size), fmt, args );
           assert( len <= cap - size );
      }
      va_end(args);
      str_hdr(x)->len += len;
+     return x;
+}
+#endif
+
+char *_strn_append( char *dest, size_t n, char *src ){
+     if ( str_size( dest ) + n > str_cap( dest ) ){
+          dest = string_grow( str_hdr( dest ), str_cap(dest) * 2 );
+     } 
+     char *x  = dest + str_len( dest );
+     for ( int i = 0; i < n ; i++ ){
+          *x++ = *src++;
+     }
+     str_hdr(dest)->len += n;
+     *x = 0;
+     return dest;
+}
+
+char *_string_app_char( char *x, char c ){ // append a single character at the end of string
+     if ( str_size( x ) + 1 > str_cap( x ) ){
+          x = string_grow( str_hdr(x), str_cap(x) * 2 );
+     }
+     strHdr *s = str_hdr(x);
+     x[ s->len ] = c;
+     s->len++;
+     x[ s->len ] = 0;
      return x;
 }
 
@@ -146,8 +173,14 @@ void str_test(void){
      str_print( s1, "%s\n","Working!");
      char *s2 = NULL;
      str_init( s2 );
-     strn_app_print( s2, 3, "%s","aaaa" );
+     //strn_app_print( s2, 3, "%s","aaaa" );
+     strn_app( s2,3,"aaaa"); 
      assert( strcmp( s2, "aaa" ) == 0 );
+     str_add_char( s2,'f');
+     str_add_char( s2,'u');
+     str_add_char( s2,'c');
+     str_add_char( s2,'k');
+     assert( strcmp( s2,"aaafuck") == 0 );
      //str_append(s1," this shit\n");
      //for ( int i = 0; i < 32; i++ ){
      //     str_append(s1,"!");

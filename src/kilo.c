@@ -17,45 +17,16 @@ enum {
      MAX_LINES = 256,
      BUFF_COLUMNS = 256,
 };
+
 FILE *log_file;
-#if 0
-typedef struct StoreBuffer{
-     char**  buff;
-     size_t current_pos; // where the cursor currently is 
-     size_t len; // the length of the string in buff 
-     size_t line_len[MAX_LINES]; // line_len[ LINE_NUMBER ] gives the lenght of the string in the line LINE_NUMBER
-} StoreBuffer;
-#endif
+#define LOG_ERROR( ... )  fprintf( log_file,__VA_ARGS__ ) 
+#define LOG_LINE fprintf( log_file,"\n=============================================\n" );
+
 typedef struct StoreBuffer {
      char **buff; // buffer that will contains 'strings' as defined in string.c and kilo_string.h
      size_t lines;
 } StoreBuffer;
-#define LOG_ERROR( ... )  fprintf( log_file,__VA_ARGS__ ) 
-#define LOG_LINE fprintf( log_file,"\n=============================================\n" );
-
 StoreBuffer main_buffer;
-
-
-/*
-typedef struct term_info {
-     struct {
-          int row;
-          int col;
-     } ws;
-     struct {
-          int row;
-          int col;
-     } pos;
-     struct termios terminal;
-} term_info;
-*/
-
-// 2d access via 1d array
-// array[ n * x + y ], n is no of columns
-// the -1 exists as the left most as tiddles
-#define POS( X, Y ) ( main_buffer.buff[ ( BUFF_COLUMNS )*(X) + ( Y ) ] ) 
-
-
 
 struct termios terminal_state;
 void *xmalloc( size_t size ){
@@ -305,11 +276,6 @@ typedef struct StoreBuffer{
 
 #if 0
 void buff_write( char c ){
-     assert( active_term.pos.row >= 1 );
-     assert( active_term.pos.col >= active_term.left_padding - 1 );
-     POS( active_term.pos.row - 1 , active_term.pos.col - active_term.left_padding - 1 ) = c;
-     LOG_ERROR("Writing \'%c\' to position ( %d, %d ).\n",c,active_term.pos.row - 1, active_term.pos.col -active_term.left_padding - 1 );
-     main_buffer.line_len[ active_term.pos.row ]++;
 }
 #endif
 
@@ -508,7 +474,7 @@ int main(int argc, char *argv[]){
      log_file = fopen( "test/log.txt", "w" );
      str_test();
      buff_init_test();
-#if 1
+#if 0
      active_term.left_padding = 2;
      active_term.pos.row = 1;
      active_term.pos.col = 1;
