@@ -31,12 +31,28 @@ static void *xrealloc( void *buff,size_t size ){
 char* _init_string( char *str ){
      if ( str != NULL ){
           fprintf(stderr,"Not a null string pointer!\n");
+          assert( 0 );
           return NULL;
      } else {
           strHdr *new = xcalloc( 1,sizeof(strHdr ) + MIN_SIZE );
           assert ( new );
           new->len = 0;
           new->cap = MIN_SIZE;
+          assert( new->cap >= new->len + 1 ); // the invariant for the whole string process
+          return new->str;
+     }
+}
+
+char *_init_string_with_size( char *str , size_t size ){
+     if ( str != NULL ){
+          fprintf(stderr,"Not a null string pointer!\n");
+          assert( 0 );
+          return NULL;
+     } else {
+          strHdr *new = xcalloc( 1,sizeof(strHdr ) + size );
+          assert ( new );
+          new->len = 0;
+          new->cap = size;
           assert( new->cap >= new->len + 1 ); // the invariant for the whole string process
           return new->str;
      }

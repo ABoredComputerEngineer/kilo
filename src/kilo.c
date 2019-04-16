@@ -18,13 +18,20 @@ enum {
      BUFF_COLUMNS = 256,
 };
 FILE *log_file;
+#if 0
 typedef struct StoreBuffer{
-     char*  buff;
+     char**  buff;
      size_t current_pos; // where the cursor currently is 
      size_t len; // the length of the string in buff 
      size_t line_len[MAX_LINES]; // line_len[ LINE_NUMBER ] gives the lenght of the string in the line LINE_NUMBER
 } StoreBuffer;
+#endif
+typedef struct StoreBuffer {
+     char **buff; // buffer that will contains 'strings' as defined in string.c and kilo_string.h
+     size_t lines;
+} StoreBuffer;
 #define LOG_ERROR( ... )  fprintf( log_file,__VA_ARGS__ ) 
+#define LOG_LINE fprintf( log_file,"\n=============================================\n" );
 
 StoreBuffer main_buffer;
 
@@ -296,6 +303,7 @@ typedef struct StoreBuffer{
 } StoreBuffer;
 */
 
+#if 0
 void buff_write( char c ){
      assert( active_term.pos.row >= 1 );
      assert( active_term.pos.col >= active_term.left_padding - 1 );
@@ -303,6 +311,7 @@ void buff_write( char c ){
      LOG_ERROR("Writing \'%c\' to position ( %d, %d ).\n",c,active_term.pos.row - 1, active_term.pos.col -active_term.left_padding - 1 );
      main_buffer.line_len[ active_term.pos.row ]++;
 }
+#endif
 
 void process_key(void){
      char c = get_key_press();
@@ -335,7 +344,7 @@ void process_key(void){
                active_term.pos.row = active_term.ws.row;
                break;
           default:{
-               buff_write( c );
+               //buff_write( c );
                move_cursor(ARROW_RIGHT);
                break;
           }
@@ -386,9 +395,9 @@ void refresh_screen(void){
      str_append( s1, CLEAR_LINE CURSOR_HOME ); // clear the line and set cursor to home position
      print_tidles(s1);
      str_app_print( s1,SET_CURSOR_FORMAT_STR ,active_term.pos.row, active_term.left_padding + 1 );  // set cursor to the begining of current row
-     LOG_ERROR("Length of Line #%d : %zu\n", active_term.pos.row, main_buffer.line_len[ active_term.pos.row ]  );
-     LOG_ERROR("String printed: %s\n",BUFF_LINE(active_term.pos.row) );
-     strn_app_print( s1, main_buffer.line_len[ active_term.pos.row ] ,"%s",BUFF_LINE(active_term.pos.row)  );
+     //LOG_ERROR("Length of Line #%d : %zu\n", active_term.pos.row, main_buffer.line_len[ active_term.pos.row ]  );
+     //LOG_ERROR("String printed: %s\n",BUFF_LINE(active_term.pos.row) );
+     //strn_app_print( s1, main_buffer.line_len[ active_term.pos.row ] ,"%s",BUFF_LINE(active_term.pos.row)  );
      str_app_print( s1,SET_CURSOR_FORMAT_STR ,active_term.pos.row, active_term.pos.col );  // arguments are row followed by columns
      if ( write(STDOUT_FILENO,s1,str_len(s1)) == -1 ){
           errExit("Error writing to stdout!\n");
@@ -435,18 +444,76 @@ void print_welcome(void){
      write(STDOUT_FILENO,"\x1b[1;2H",6);
 }
 
+#if 0
+void init_empty_buffer(StoreBuffer *s, size_t lines, size_t columns){
+     s->buff = xmalloc( lines * sizeof( *(s->buff) ) ); // sizeof(char *)
+     s->line_len = xcalloc( lines , sizeof( *(s->line_len) ) ); // sizeof( size_t )
+     s->line_cap = xcalloc( lines, sizeof( *(s->line_cap ) ) ); // sizeof ( size_t  )
+     size_t *cap = s->line_cap;
+     for ( char **x = s->buff; x != s->buff + lines ; x++ ){
+          *x = xmalloc( columns * sizeof( char ) ); // sizeof( **x ) 
+          *cap++ = columns;
+}
+#endif
+
+void init_empty_buffer(StoreBuffer *s, size_t lines, size_t columns){
+     s->lines = lines;
+     s->buff = xcalloc( lines , sizeof( *(s->buff) ) ); // sizeof(char *)
+     for ( char **x = s->buff; x != s->buff + lines ; x++ ){
+          assert( *x == NULL );
+          str_init_size( *x, columns );
+     }
+}
+
+void buff_destroy( StoreBuffer *s ){
+     for ( char **it = s->buff; it != s->buff + s->lines ; it++ ){
+          str_free( *it );
+          assert( *it == NULL );
+     }
+     free( s->buff );
+     s->buff = NULL;
+     s->lines = 0;
+}
+
+void buff_init_test( ){
+     StoreBuffer s;
+     enum { TEST_LINES = 10, TEST_COLS = 30 };
+     init_empty_buffer( &s, TEST_LINES, TEST_COLS );
+     char **x = s.buff;
+     for ( size_t i = 0 ; i < TEST_LINES ; i++ ){
+          assert( str_cap( *x ) == TEST_COLS );
+          assert( str_len( *x ) == 0 ); 
+          x++;
+     }
+     LOG_ERROR( "Buffer Allocated successfully!\nAdding data to Buffer \n" );
+     for ( char **it = s.buff; it != s.buff + TEST_LINES ; it++ ){
+          str_append( *it, "Fuck this shit" );
+     }
+     str_append( s.buff[3], " No! Fuck THIS shit" );
+     str_append( s.buff[4], " Fuuuuuuuck!" );
+     LOG_ERROR( "Testing Buffer... \n" );
+     LOG_ERROR( "Lines allocated : %d , Columns allocated: %d\n", TEST_LINES, TEST_COLS );
+     LOG_ERROR( "Contents are:\n ");
+     for ( char **it = s.buff; it != s.buff + TEST_LINES ; it++ ){
+          int x = ( int ) ( it - s.buff );
+          LOG_ERROR( "Line %d, Length : %zu, Capacity: %zu :\n%s\n\n", x, str_len( *it ), str_cap( *it ), *it ); 
+     }
+     LOG_ERROR( "Finished Buffer Testing" );
+     LOG_LINE;
+     buff_destroy( &s );
+}
 
 
 int main(int argc, char *argv[]){
+     log_file = fopen( "test/log.txt", "w" );
      str_test();
+     buff_init_test();
+#if 1
      active_term.left_padding = 2;
      active_term.pos.row = 1;
      active_term.pos.col = 1;
-     log_file = fopen( "test/log.txt", "w" );
-
-     main_buffer.buff = xmalloc( MAIN_BUFF_LEN + 1 );
-     main_buffer.current_pos = 0;
-     main_buffer.len = 0;
+     
+//     init_empty_buffer(&main_buffer);
 
      if ( tcgetattr(STDIN_FILENO,&active_term.terminal) == - 1 ){
           errExit("Unable to detect terminal for the stream!\n"); 
@@ -477,6 +544,7 @@ int main(int argc, char *argv[]){
          process_key();
 #endif
      }
+#endif
      return 0;
 }
 

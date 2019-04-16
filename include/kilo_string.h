@@ -24,12 +24,14 @@ enum { MIN_SIZE = 256 };
 #define str_cap(x) ( ( x )?str_hdr(x)->cap:0 )
 #define str_free(x) ( free( str_hdr(x) ), x = NULL )
 #define str_init(x) ( x = _init_string( x ) )
+#define str_init_size( x, size ) ( x = _init_string_with_size( x, size ) )
 #define str_append(x,y) ( x = _string_append(x,y) )
 #define str_print(x,y,...) ( x = _string_print(x, y, __VA_ARGS__ ) )
 #define str_app_print(x, y , ... ) ( x = _string_app_print( x, y , __VA_ARGS__ ) )
 #define strn_app_print(x,n, y , ... ) ( x = _stringn_app_print( x,n, y , __VA_ARGS__ ) )
 
 char *_init_string( char *str );
+char *_init_string_with_size( char *str, size_t size );
 char *string_grow( strHdr *x, size_t new );
 char *_string_append( char *x, const char *y );
 char *_string_print( char *x, const char *fmt, ... );
