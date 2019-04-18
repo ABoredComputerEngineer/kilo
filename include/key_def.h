@@ -26,4 +26,6 @@ enum key_def {
      F13,
      F14,
      F15,
+     // Normal keys with specific names
+     BACKSPACE = 127,
 };

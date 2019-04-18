@@ -165,6 +165,40 @@ char *_string_app_char( char *x, char c ){ // append a single character at the e
      return x;
 }
 
+static void swap( char *x, char *y ){
+     char temp = *x;
+     *x = *y;
+     *y = temp;
+}
+
+
+void _delete_char_pos(char *str, size_t pos ){
+     size_t len = str_len( str );
+     // len is the index of the null character in the string, len - 1 is the last proper character
+     if ( pos > len - 1 ) {
+          return;
+     } else {
+          // At the end swaps the deleted character and the '\0' character
+          for ( char *s = str + pos; s != str + len; s++ ){
+               swap ( s, s+1 );
+          }
+     }
+     ( str_hdr(str)->len )--;
+}
+
+char *_insert_char( char *str, char c, size_t pos ){
+     if ( str_size( str ) + 1 > str_cap( str ) ){
+          str = string_grow( str_hdr( str ), str_cap(str) << 2 );
+     }
+     size_t len = str_len( str );
+     for ( char *s = str + len + 1 ; s != str + pos; s-- ){
+          swap( s , s - 1 );
+     }
+     str[ pos ] = c;
+     ( str_hdr( str )->len )++;
+     return str;
+}
+
 void str_test(void){
      char *s1 = NULL;  
      str_init(s1);
@@ -176,11 +210,23 @@ void str_test(void){
      //strn_app_print( s2, 3, "%s","aaaa" );
      strn_app( s2,3,"aaaa"); 
      assert( strcmp( s2, "aaa" ) == 0 );
-     str_add_char( s2,'f');
-     str_add_char( s2,'u');
-     str_add_char( s2,'c');
-     str_add_char( s2,'k');
+     str_app_char( s2,'f');
+     str_app_char( s2,'u');
+     str_app_char( s2,'c');
+     str_app_char( s2,'k');
      assert( strcmp( s2,"aaafuck") == 0 );
+     str_delete_char_pos( s2, 1 );
+     assert( strcmp( s2,"aafuck" ) == 0 );
+     str_delete_char_pos( s2, str_len(s2)-1 );
+     assert( strcmp( s2, "aafuc" ) == 0 );
+     str_insert_char( s2, 'b', 1 );
+     assert( strcmp( s2, "abafuc" ) == 0 );
+     char *s3 = NULL;
+     str_init( s3 );
+     str_delete_char_pos( s3, 0 );
+     str_insert_char( s3, '3', 0 );
+     str_insert_char( s3,'2',0);
+     assert( strcmp( s3, "23" ) == 0 );
      //str_append(s1," this shit\n");
      //for ( int i = 0; i < 32; i++ ){
      //     str_append(s1,"!");

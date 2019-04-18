@@ -30,7 +30,9 @@ enum { MIN_SIZE = 256 };
 #define str_app_print(x, y , ... ) ( x = _string_app_print( x, y , __VA_ARGS__ ) )
 #define strn_app( x, n , y ) ( x = _strn_append( x, n , y ) )
 //#define strn_app_print(x,n, y , ... ) ( x = _stringn_app_print( x,n, y , __VA_ARGS__ ) )
-#define str_add_char( x, c ) ( x = _string_app_char( x, c ) )
+#define str_app_char( x, c ) ( x = _string_app_char( x, c ) )
+#define str_insert_char(x,c,pos) ( (x) = _insert_char( x, c, pos ) ) 
+#define str_delete_char_pos( x, pos ) ( _delete_char_pos(x, pos ) ) 
 
 char *_init_string( char *str );
 char *_init_string_with_size( char *str, size_t size );
@@ -41,5 +43,7 @@ char *_string_app_print( char *x, const char *fmt, ... );
 char *_strn_append( char *dest, size_t n, char *src );
 //char *_stringn_app_print( char *x, size_t n, const char *fmt, ... );
 char *_string_app_char( char *x, char c ); // append a single character at the end of string
+char *_insert_char( char *str, char c, size_t pos );
+void _delete_char_pos(char *str, size_t pos );
 void str_test( void );
 #endif
